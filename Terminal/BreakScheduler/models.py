@@ -11,6 +11,6 @@ class Employee(models.Model):
     def __str__(self):
         return f"{self.name}"
 
-class Shift(models.Model):
+#class Shift(models.Model):
     #Represents a single scheduled period of work
-    employee = models.ForeignKey(Employee)
+#employee = models.ForeignKey(Employee)
