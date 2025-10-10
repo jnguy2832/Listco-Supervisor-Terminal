@@ -22,3 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='dashboard')
 ]
+
+urlpatterns = [
+    path('break/', views.break_view, name='break'),
+]
