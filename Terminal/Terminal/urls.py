@@ -21,5 +21,7 @@ from BreakScheduler import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='Dashboard'),
-    path('breaks/', views.breakPortal, name='Breaks')
+    path('breaks/', views.breakPortal, name='Breaks'),
+    path('candy/', views.candy, name='candy'),
+    path('carts/', views.carts, name='carts')
 ]

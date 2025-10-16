@@ -29,3 +29,20 @@ class Shift(models.Model):
     is_scheduled = models.BooleanField(default=False)
     def __str__(self):
         return f"shift for {self.employee.first_name} {self.employee.last_name} on {self.start_time.date()}"
+    
+class Break(models.Model):
+    BREAK_TYPES = [
+        ('15', '15 minute break'),
+        ('M30', '30 minute meal')
+    ]
+
+    shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
+    break_type = models.CharField(max_length=3, choices=BREAK_TYPES)
+    break_start = models.DateTimeField(null=True, blank=True)
+    break_end = models.DateTimeField(null=True, blank=True)
+
+    #Tracks whether the break was taken or assigned
+    status=models.CharField(max_length=20, default='Assigned')
+
+    def __str__(self):
+        return f"{self.break_type} for {self.shift.employee.last_name}"
