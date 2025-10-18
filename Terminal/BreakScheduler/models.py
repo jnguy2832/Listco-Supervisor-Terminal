@@ -31,6 +31,79 @@ class Shift(models.Model):
     def __str__(self):
         return f"shift for {self.employee.first_name} {self.employee.last_name} on {self.start_time.date()}"
     
+    #method to calculate total shift duration and find break requirements
+    def calculate_break_requirments(self):
+        #calculate total duration
+        duration = self.end_time - self.start_time
+        #convert total duration to hours
+        total_hours = duration.total_seconds() / 3600
+
+        required_breaks = {'15': 0, '30' : 0}
+
+        #iterate through the rules to find the highest duration met
+        for min_hours, counts in sorted(break_rules.items()):
+            if total_hours >= min_hours:
+                required_breaks = counts
+
+        return required_breaks, total_hours
+
+    def generate_breaks(self):
+        # 1. clear any existing breaks for this shift
+        self.break_set.all().delete()
+        
+        required_breaks, total_hours = self.calculate_break_requirments()
+
+        if total_hours < 4:
+            return #no breaks for shifts less than 4 hours
+
+        breaks_to_schedule = []
+        for _ in range(required_breaks['30']):
+            breaks_to_schedule.append(('M30', meal_30_minutes))
+        for _ in range(required_breaks['15']):
+            breaks_to_schedule.append(('15', break_15_minutes))
+
+        #total working time (excluding unpaid 30 min meal)
+        paid_working_minutes = total_hours * 60
+        if required_breaks['30'] > 0:
+            paid_working_minutes -= meal_30_minutes
+
+        #total duration of all breaks to be taken
+        total_break_time = sum(item[1] for item in breaks_to_schedule)
+        
+        #total elapsed time during shift including breaks
+        total_elapsed_time = total_hours * 60
+
+        #determine intervals for even distribution (need n+1 intervals for n breaks)
+        N = len(breaks_to_schedule)
+        if N == 0:
+            return
+
+        #divide the shift time into N+1 even slots
+        interval_minutes = total_elapsed_time / (N + 1)
+
+        current_time = self.start_time
+        scheduled_breaks = []
+
+        # 3. schedule the breaks
+        for i, (break_type, duration) in enumerate(breaks_to_schedule):
+            # The break should start roughly 'interval_minutes' after the previous break/start of shift
+            # We use i+1 because the first break is after the first interval.
+            target_start_offset = timedelta(minutes=interval_minutes * (i + 1))
+
+            #calculate break start and end time
+            break_start = self.start_time + target_start_offset
+            break_end = break_start + timedelta(minutes=duration)
+
+            scheduled_breaks.append(Break(
+                shift=self,
+                break_type=break_type,
+                break_start=break_start,
+                break_end=break_end
+            ))
+
+        # 4. Save to database
+        Break.objects.bulk_create(scheduled_breaks)
+    
 class Break(models.Model):
     BREAK_TYPES = [
         ('15', '15 minute break'),
