@@ -19,6 +19,34 @@ class Employee(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name} {self.job_title}"
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class Shift(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     start_time = models.DateTimeField()
