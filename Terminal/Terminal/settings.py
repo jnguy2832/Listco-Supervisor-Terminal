@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_q',
     'BreakScheduler'
 ]
 
@@ -99,6 +100,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+Q_CLUSTER = {
+    'name': 'BreakReminder',
+    'workers': 2,
+    'timeout': 30,
+    'retry': 60,
+    'orm': 'default'
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

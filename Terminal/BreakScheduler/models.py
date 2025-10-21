@@ -22,7 +22,7 @@ class Employee(models.Model):
 class Shift(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     start_time = models.DateTimeField()
-    end_time = models.DateTimeField
+    end_time = models.DateTimeField()
 
     #store the actual shift length in num of minutes. e.g. 8 hrs = 480 mins
     shift_len = models.IntegerField(default=0)
@@ -110,6 +110,7 @@ class Break(models.Model):
         ('M30', '30 minute meal')
     ]
 
+    break_id = models.CharField(max_length=5)
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
     break_type = models.CharField(max_length=3, choices=BREAK_TYPES)
     break_start = models.DateTimeField(null=True, blank=True)
