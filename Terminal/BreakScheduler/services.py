@@ -5,7 +5,8 @@ from django_q.models import Schedule
 from .models import *
 
 class BreakService:
-
+    #Event for break reaching 'minutesLeftAlert' time left.
+    #Status hardcoded as 5 minutes for business needs but possible to be dynamic if needed.
     @staticmethod
     def breakEnding(break_id):
         try:
@@ -21,7 +22,7 @@ class BreakService:
         except Break.DoesNotExist:
             print("Break not found")
             return -1
-
+    #Starts break of breakObject and determines when breakEnding function should run with minutesLeftAlert
     @staticmethod
     def startBreak(breakObject, minutesLeftAlert=5):
         breakObject.break_start = timezone.now()
@@ -44,7 +45,7 @@ class BreakService:
                     next_run=reminderTime,
                     name=(f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}'),
                 )
-
+    #Deletes django_q schedule for breakObject when break ends. Output string only for testing.
     @staticmethod
     def endBreak(breakObject):
         Schedule.objects.filter(
