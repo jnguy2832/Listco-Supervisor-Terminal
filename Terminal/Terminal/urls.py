@@ -26,5 +26,6 @@ urlpatterns = [
     path('carts/', views.carts, name='carts'),
     path('gas_station/', views.gasStation, name='gas station'),
     path('haba/', views.haba, name='haba'),
-    path('walk/', views.walk, name='walk')
+    path('walk/', views.walk, name='walk'),
+    path('schedule/', views.weeklySchedule, name='schedule')
 ]

@@ -20,3 +20,6 @@ def gasStation(request):
 
 def walk(request):
     return render(request, 'walk.html')
+
+def weeklySchedule(request):
+    return render(request, 'schedule.html')
