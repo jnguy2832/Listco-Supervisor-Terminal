@@ -110,7 +110,7 @@ class Break(models.Model):
         ('M30', '30 minute meal')
     ]
 
-    break_id = models.CharField(max_length=5)
+    #break_id = models.CharField(max_length=5)
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE)
     break_type = models.CharField(max_length=3, choices=BREAK_TYPES)
     break_start = models.DateTimeField(null=True, blank=True)
