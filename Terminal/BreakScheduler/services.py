@@ -13,15 +13,42 @@ class BreakService:
             breakObject = Break.objects.get(id=break_id)
             employeeBreak = breakObject.shift.employee
 
-            print("Test break detection Break ending soon")
-
             breakObject.status = '5 minutes left'
             breakObject.save()
+            #SSE/other notification approach will replace print statement.
+            print("Test break detection Break ending soon")
+
+            #Schedules task end after warning, logic goes breakStart > breakEnding > breakEnded
+            ended_task_id = schedule(
+                'BreakScheduler.services.BreakService.breakEnded',
+                breakObject.id,
+                schedule_type = Schedule.ONCE,
+                next_run = breakObject.break_end,
+                name = (f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}')
+            )
+
 
             return "Break notification test"
         except Break.DoesNotExist:
             print("Break not found")
             return -1
+    
+    @staticmethod
+    def breakEnded(break_id):
+        try:
+            breakObject = Break.objects.get(id=break_id)
+            employeeBreak = breakObject.shift.employee
+
+            print("Test break detection Break ending now")
+
+            breakObject.status = 'Over'
+            breakObject.save()
+
+            return "Break ending now"
+        except Break.DoesNotExist:
+            print("Break not found")
+            return -1
+
     #Starts break of breakObject and determines when breakEnding function should run with minutesLeftAlert
     @staticmethod
     def startBreak(breakObject, minutesLeftAlert=5):
@@ -31,9 +58,6 @@ class BreakService:
         
         Schedule.objects.filter(name__contains=f'Break #{breakObject.id}').delete()
 
-        warning_task_id = -1
-        ended_task_id = -1
-
         if breakObject.break_end:
             reminderTime = breakObject.break_end - timedelta(minutes=minutesLeftAlert)
 
@@ -41,19 +65,23 @@ class BreakService:
                 warning_task_id = schedule(
                     'BreakScheduler.services.BreakService.breakEnding',
                     breakObject.id,
-                    schedule_type=Schedule.ONCE,
-                    next_run=reminderTime,
+                    schedule_type = Schedule.ONCE,
+                    next_run = reminderTime,
                     name=(f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}'),
                 )
+        return warning_task_id
+
     #Deletes django_q schedule for breakObject when break ends. Output string only for testing.
     @staticmethod
     def endBreak(breakObject):
         Schedule.objects.filter(
-            func__in=['BreakScheduler.services.BreakService.breakEnding'],
+            func__in=['BreakScheduler.services.BreakService.breakEnding',
+                      'BreakScheduler.services.BreakService.breakEnded'],
             name__contains=f'Break #{breakObject.id}'
         ).delete()
 
         breakObject.status = 'Over'
         breakObject.save()
 
-        print("Break has been ended for ", breakObject.shift.employee.last_name)
+        print("Schedule has been ended for ", breakObject.shift.employee.last_name)
+        return "Schedule ended"
