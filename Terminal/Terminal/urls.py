@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='Dashboard'),
     path('weeklySchedule/', views.weeklyPortal, name='Schedule'),
+    path('break/', views.breaks, name='break'),
     path('candy/', views.candy, name='candy'),
     path('carts/', views.carts, name='carts'),
     path('gas_station/', views.gasStation, name='gas station'),

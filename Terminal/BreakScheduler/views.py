@@ -6,6 +6,9 @@ def index(request):
 def weeklyPortal(request):
     return render(request, 'schedule.html')
 
+def breaks(request):
+    return render(request, 'breaks.html')
+
 def candy(request):
     return render(request, 'candy.html')
 
