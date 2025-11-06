@@ -3,8 +3,8 @@ from django.shortcuts import render
 def index(request):
     return render(request, 'dashboard.html')
 
-def breakPortal(request):
-    return render(request, 'break.html')
+def weeklyPortal(request):
+    return render(request, 'schedule.html')
 
 def candy(request):
     return render(request, 'candy.html')
