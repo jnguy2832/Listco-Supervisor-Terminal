@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_q',
+    'channels',
     'BreakScheduler'
 ]
 
@@ -108,6 +110,16 @@ Q_CLUSTER = {
     'orm': 'default'
 }
 
+ASGI_APPLICATION = 'Terminal.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)]
+        }
+    }
+}
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
