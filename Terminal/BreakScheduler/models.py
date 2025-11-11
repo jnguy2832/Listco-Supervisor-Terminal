@@ -14,6 +14,7 @@ class Employee(models.Model):
     employee_id_num = models.CharField(max_length=20)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    location = models.CharField(max_length=5)
     job_title = models.ForeignKey(JobTitle, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
