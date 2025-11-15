@@ -3,8 +3,29 @@ from datetime import timedelta
 from django_q.tasks import schedule
 from django_q.models import Schedule
 from .models import *
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 class BreakService:
+    @staticmethod
+    def broadcast_break_update(break_obj):
+        #Method to update break for client
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                'breaks_updates',
+                {
+                    'type': 'break_status_update',
+                    'break_id': break_obj.id,
+                    'status': break_obj.status,
+                    'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
+                    'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
+                    'employee_name': f"{break_obj.shift.employee.first_name} {break_obj.shift.employee.last_name}",
+                    'break_type': break_obj.break_type
+                }
+            )
+
+
     #Event for break reaching 'minutesLeftAlert' time left.
     #Status hardcoded as 5 minutes for business needs but possible to be dynamic if needed.
     @staticmethod
@@ -15,8 +36,10 @@ class BreakService:
 
             breakObject.status = '5 minutes left'
             breakObject.save()
-            #SSE/other notification approach will replace print statement.
-            print("Test break detection Break ending soon")
+
+            
+            #Websocket broadcast for breakEnding
+            BreakService.broadcast_break_update(breakObject)
 
             #Schedules task end after warning, logic goes breakStart > breakEnding > breakEnded
             ended_task_id = schedule(
@@ -39,7 +62,7 @@ class BreakService:
             breakObject = Break.objects.get(id=break_id)
             employeeBreak = breakObject.shift.employee
 
-            print("Test break detection Break ending now")
+            BreakService.broadcast_break_update(breakObject)
 
             breakObject.status = 'Over'
             breakObject.save()
@@ -56,6 +79,8 @@ class BreakService:
         breakObject.status = 'On Break'
         breakObject.save()
         
+        BreakService.broadcast_break_update(breakObject)
+
         Schedule.objects.filter(name__contains=f'Break #{breakObject.id}').delete()
 
         if breakObject.break_end:
@@ -82,6 +107,8 @@ class BreakService:
 
         breakObject.status = 'Over'
         breakObject.save()
+
+        BreakService.broadcast_break_update(breakObject)
 
         print("Schedule has been ended for ", breakObject.shift.employee.last_name)
         return "Schedule ended"

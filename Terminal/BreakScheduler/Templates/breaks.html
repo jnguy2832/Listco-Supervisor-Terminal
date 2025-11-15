@@ -68,9 +68,29 @@
       cursor: pointer;
       color: #944ec2;
     }
+    .status-class {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: .75rem;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .status-class.on-break {
+      background-color: white;
+      color: white;
+    }
+    .status-class.ending-soon {
+      background-color: orange;
+      color: white;
+    }
+    .status-class.over {
+      background-color: red;
+      color: white;
+    }
   </style>
 </head>
-<body>
+<body onload="populateMonthDropdown()">
 
   <div class="menu-header">
     <img src="/static/logo.png" alt="Listco Logo" />
@@ -93,6 +113,9 @@
           <select id="weekSelector" class="form-select" onchange="updateSelectedWeek()"></select>
         </div>
       </div>
+      <div class="ms-auto">
+        <span id="connectionStatus" class="connection-status status-disconnected">Disconnected</span>
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -107,65 +130,336 @@
             <th>Break Timeframe(s)</th>
           </tr>
         </thead>
-        <tbody id="trackerBody">
-          {% if shifts_today %}
-            {% for shift in shifts_today %}
-              {% with breaks=shift.break_set.all %}
-              <tr class="{% if shift.id in shifts_on_break_ids %}table-warning{% endif %}">
-                <td>
-                  <div class="employee-name">{{ shift.employee.first_name }} {{ shift.employee.last_name }}</div>
-                  <div class="text-muted">{{ shift.employee.job_title }}</div>
-                </td>
-                <td>{{ shift.start_time|date:"M d, Y" }}</td>
-                <td>{{ shift.start_time|time:"g:i A" }}</td>
-                <td>{{ shift.end_time|time:"g:i A" }}</td>
-                <td>{{ shift.employee.job_title }}</td>
-                <td>
-                  {% if breaks %}
-                    {% for b in breaks %}
-                      <div class="mb-2 p-2 border rounded">
-                        <div><strong>{{ b.get_break_type_display }}</strong>
-                          {% if b.break_start %} — {{ b.break_start|time:"g:i A" }}{% endif %}
-                          {% if b.break_end %} to {{ b.break_end|time:"g:i A" }}{% endif %}
-                        </div>
-
-                        <div class="mt-1">
-                          {% if b.id in on_break_ids %}
-                            <span class="badge bg-danger me-2">On Break</span>
-                            <form method="post" style="display:inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="end_break">
-                              <input type="hidden" name="break_id" value="{{ b.id }}">
-                              <button class="btn btn-sm btn-outline-success">End Break</button>
-                            </form>
-                          {% elif b.status == 'Assigned' %}
-                            <span class="badge bg-secondary me-2">Assigned</span>
-                            <form method="post" style="display:inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="start_break">
-                              <input type="hidden" name="break_id" value="{{ b.id }}">
-                              <button class="btn btn-sm btn-primary">Start Break</button>
-                            </form>
-                          {% else %}
-                            <span class="badge bg-success">{{ b.status }}</span>
-                          {% endif %}
-                        </div>
-                      </div>
-                    {% endfor %}
-                  {% else %}
-                    <div class="text-muted">No breaks scheduled</div>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endwith %}
-            {% endfor %}
-          {% else %}
-            <tr><td colspan="6" class="text-center text-muted">No shifts scheduled for today.</td></tr>
-          {% endif %}
-        </tbody>
+        <tbody id="trackerBody"></tbody>
       </table>
     </div>
   </div>
+
+  <script>
+    function getWeekRange(startDate) {
+      const sunday = new Date(startDate);
+      const saturday = new Date(sunday);
+      saturday.setDate(sunday.getDate() + 6);
+      const options = { month: '2-digit', day: '2-digit', year: 'numeric' };
+      return `${sunday.toLocaleDateString('en-US', options)} to ${saturday.toLocaleDateString('en-US', options)}`;
+    }
+
+    function populateMonthDropdown() {
+      const monthSelector = document.getElementById("monthSelector");
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      monthSelector.innerHTML = "";
+
+      for (let m = 0; m <= 11; m++) {
+        const date = new Date(currentYear, m, 1);
+        const label = date.toLocaleString('en-US', { month: 'long' });
+        const option = document.createElement("option");
+        option.value = m;
+        option.textContent = label;
+        if (m === today.getMonth()) option.selected = true;
+        monthSelector.appendChild(option);
+      }
+
+      updateWeekOptions();
+    }
+
+    function updateWeekOptions() {
+      const month = parseInt(document.getElementById("monthSelector").value);
+      const weekSelector = document.getElementById("weekSelector");
+      weekSelector.innerHTML = "";
+
+      const today = new Date();
+      const year = today.getFullYear();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      let sunday = new Date(firstDay);
+      sunday.setDate(sunday.getDate() - sunday.getDay());
+
+      while (sunday <= lastDay) {
+        const label = getWeekRange(sunday);
+        const option = document.createElement("option");
+        option.value = label;
+        option.textContent = label;
+        weekSelector.appendChild(option);
+        sunday.setDate(sunday.getDate() + 7);
+      }
+
+      updateSelectedWeek();
+    }
+
+    function updateSelectedWeek() {
+      const selectedMonth = parseInt(document.getElementById("monthSelector").value);
+      const trackerBody = document.getElementById("trackerBody");
+      trackerBody.innerHTML = "";
+
+      const entries = []; // Supervisor will populate this manually or via backend
+
+      entries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        if (entryDate.getMonth() === selectedMonth) {
+          const breakDetails = entry.breaks.map(b => `• ${b.inTime} – ${b.outTime}`).join("<br>");
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td><div class="employee-name">${entry.name}</div></td>
+            <td>${entry.date}</td>
+            <td>${entry.start}</td>
+            <td>${entry.end}</td>
+            <td>${entry.location}</td>
+            <td>
+              <details>
+                <summary>View Breaks Taken</summary>
+                <div class="text-start mt-1">${breakDetails}</div>
+              </details>
+            </td>
+          `;
+          trackerBody.appendChild(row);
+        }
+      });
+    }
+
+    // Construct WebSocket URL from the page origin. This avoids accidental
+    // concatenation of host/path when the page is served under a subpath.
+    console.log('Location debug:', {
+      href: window.location.href,
+      origin: window.location.origin,
+      host: window.location.host,
+      hostname: window.location.hostname,
+      port: window.location.port,
+      pathname: window.location.pathname
+    });
+
+    function buildWsUrl(path) {
+      // Use origin (scheme + host + port) and swap http->ws
+      const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+      let wsOrigin = origin.replace(/^http/, 'ws');
+      let full = wsOrigin.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
+      // normalize double slashes after the scheme (keep the // after ws:)
+      full = full.replace(/([^:]\/\/)\/+/g, '$1');
+      return full;
+    }
+
+    const wsUrl = buildWsUrl('/ws/breaks/');
+    console.log('WebSocket URL ->', wsUrl);
+    let breakSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    function connectWebSocket(){
+      breakSocket = new WebSocket(wsUrl);
+
+      breakSocket.onopen = function(e) {
+        console.log('WebSocket connected');
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+      };
+
+      breakSocket.onmessage = function(e) {
+          const data = JSON.parse(e.data);
+          console.log('Received: ', data);
+
+          // Server sends:
+          // - 'initial_data' with full breaks list when client connects
+          // - 'breaks_update' with a full list when requested
+          // - 'break_update' for a single break status change
+          if (data.type === 'initial_data' || data.type === 'breaks_update') {
+            renderBreaksTable(data.breaks);
+          } else if (data.type === 'break_update') {
+            updateSingleBreak(data);
+          }
+      };
+
+      breakSocket.onclose = function(e) {
+        console.log('WebSocket disconnected');
+        updateConnectionStatus(false);
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(() => {
+            console.log(`Reconnecting... Attempt ${reconnectAttempts}`);
+            connectWebSocket();
+          }, 3000);
+        }
+      };
+      breakSocket.onerror = function(error) {
+        console.error('WebSocket error: ', error);
+      };
+    }
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connectionStatus');
+      if (connected) {
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'connection-status status-connected';
+      } else {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'connection-status status-disconnected';
+      }
+    }
+    function formatTime(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
+    }
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+    }
+    function getBreakTypeDisplay(breakType) {
+      return breakType === 'M30' ? '30 minute meal' : '15 minute break';
+    }
+    function renderBreaksTable(breaks) {
+      const tbody = document.getElementById('trackerBody');
+
+      if (!breaks || breaks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Shifts Scheduled Today</td></tr>'
+        return;
+      }
+
+      const shiftsMap = new Map();
+      breaks.forEach(breakObj => {
+        const key = breakObj.employee_name;
+        if (!shiftsMap.has(key)) {
+          shiftsMap.set(key, {
+            employee_name: breakObj.employee_name,
+            breaks: []
+          });
+        }
+        shiftsMap.get(key).breaks.push(breakObj);
+      });
+
+      let html = '';
+      shiftsMap.forEach((shiftData, employee_name) => {
+        const hasActiveBreak = shiftData.breaks.some(b => b.status === 'On Break');
+        const rowClass = hasActiveBreak ? 'table-warning' : '';
+
+        const firstBreak = shiftData.breaks[0] || {};
+        const employeeName = shiftData.employee_name || employee_name;
+
+        html += `
+          <tr class="${rowClass}">
+            <td>
+              <div class="employee-name">${employeeName}</div>
+            </td>
+            <td>${firstBreak.break_start ? formatDate(firstBreak.break_start) : ''}</td>
+            <td colspan="3"></td>
+            <td>`;
+        if (shiftData.breaks.length > 0) {
+          shiftData.breaks.forEach(b => {
+            html += renderBreakItem(b);
+          });
+        } else {
+          html += '<div class="text-muted">No breaks scheduled</div>';
+        }
+        html += `
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function renderBreakItem(breakObj) {
+      let statusBadge = '';
+      let actionButton = '';
+      
+      if (breakObj.status === 'On Break') {
+        statusBadge = '<span class="badge bg-danger me-2">On Break</span>';
+        actionButton = 
+        `<button class="btn btn-sm btn-outline-success" onclick="endBreak(${breakObj.id})">
+          End Break
+        </button>`;
+      } else if (breakObj.status === '5 minutes left') {
+        statusBadge = '<span class="badge bg-warning me-2">5 minutes left</span>';
+      } else if (breakObj.status === 'Assigned') {
+        statusBadge = '<span class="badge bg-secondary me-2">Assigned</span>';
+        actionButton = `
+          <button class="btn btn-sm btn-primary" onclick="startBreak(${breakObj.id})">
+            Start Break
+          </button>`;
+          } else {
+        statusBadge = `<span class="badge bg-success">${breakObj.status}</span>`;
+      }
+
+      return `
+        <div class="mb-2 p-2 border rounded" data-break-id="${breakObj.id}">
+          <div>
+            <strong>${getBreakTypeDisplay(breakObj.break_type)}</strong>
+            ${breakObj.break_start ? ` - ${formatTime(breakObj.break_start)}` : ''}
+            ${breakObj.break_end ? ` to ${formatTime(breakObj.break_end)}` : ''}
+          </div>
+          <div class="mt-1">
+            ${statusBadge}
+            ${actionButton}
+          </div>
+        </div>`;
+    }
+    function updateSingleBreak(data) {
+      const breakEl = document.querySelector(`[data-break-id="${data.break_id}"]`);
+      if (breakEl) {
+        const breakObj = {
+          id: data.break_id,
+          break_type: data.break_type || breakEl.querySelector('strong').textContent,
+          break_start: data.break_start,
+          break_end: data.break_end,
+          status: data.status
+        };
+        breakEl.outerHTML = renderBreakItem(breakObj);
+      } else {
+        requestUpdate();
+      }
+    }
+    function requestUpdate() {
+      if (breakSocket && breakSocket.readyState === WebSocket.OPEN) {
+        breakSocket.send(JSON.stringify({type: 'update'}));
+      }
+    }
+
+    function startBreak(breakId) {
+      fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `action=start_break&break_id=${breakId}`
+      }).then(() => {
+        requestUpdate()
+      });
+    }
+
+    function endBreak(breakId) {
+      fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `action=end_break&break_id=${breakId}`
+      }).then(() => {
+        requestUpdate()
+      });
+    }
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length+1)===(name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length+1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    connectWebSocket();
+
+    setInterval(requestUpdate, 30000);
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

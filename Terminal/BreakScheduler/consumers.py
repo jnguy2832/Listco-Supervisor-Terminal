@@ -54,22 +54,34 @@ class BreakUpdateConsumer(AsyncWebsocketConsumer):
         end_of_day = timezone.make_aware(
             timezone.datetime.combine(today, timezone.datetime.max.time())
         )
-        
         shifts = Shift.objects.filter(
-            start_time__gte=start_of_day,
-            start_time__lte=end_of_day
+            start_time__lte=end_of_day,
+            end_time__gte=start_of_day
         ).select_related('employee').prefetch_related('break_set')
-        
+
         breaks_data = []
         for shift in shifts:
-            for break_obj in shift.break_set.all():
+            employee_name = f"{shift.employee.first_name} {shift.employee.last_name}"
+            related_breaks = list(shift.break_set.all())
+            if related_breaks:
+                for break_obj in related_breaks:
+                    breaks_data.append({
+                        'id': break_obj.id,
+                        'employee_name': employee_name,
+                        'break_type': break_obj.break_type,
+                        'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
+                        'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
+                        'status': break_obj.status
+                    })
+            else:
+                # No break objects were created for this shift; send a placeholder so UI can show the shift
                 breaks_data.append({
-                    'id': break_obj.id,
-                    'employee_name': f"{shift.employee.first_name} {shift.employee.last_name}",
-                    'break_type': break_obj.break_type,
-                    'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
-                    'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
-                    'status': break_obj.status
+                    'id': None,
+                    'employee_name': employee_name,
+                    'break_type': None,
+                    'break_start': shift.start_time.isoformat() if shift.start_time else None,
+                    'break_end': shift.end_time.isoformat() if shift.end_time else None,
+                    'status': 'No breaks scheduled'
                 })
-        
+
         return breaks_data
