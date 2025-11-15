@@ -26,13 +26,13 @@ def breaks(request):
 
         try:
             break_obj = Break.objects.get(pk=break_id)
-            if action == 'start_break':
+            if action =='start_break':
                 BreakService.startBreak(break_obj)
                 # Broadcast the update via WebSocket
                 broadcast_break_update(break_obj)
             elif action == 'end_break':
                 BreakService.endBreak(break_obj)
-            # (INSERT SUCCESS MESSAGE / messages framework if desired)
+            #(INSERT SUCCESS MESSAGE HERE)
         except Break.DoesNotExist:
             pass
 
@@ -61,11 +61,8 @@ def breaks(request):
 
     context = {
         'shifts_today': todays_shifts,
-        'current_time': now,
-        'on_break_ids': on_break_ids,
-        'shifts_on_break_ids': shifts_on_break_ids,
+        'current_time': timezone.now()
     }
-
     return render(request, 'breaks.html', context)
 
 def broadcast_break_update(break_obj):
