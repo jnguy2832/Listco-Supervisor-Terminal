@@ -77,12 +77,25 @@ class BreakService:
     def startBreak(breakObject, minutesLeftAlert=5):
         breakObject.break_start = timezone.now()
         breakObject.status = 'On Break'
+
+        # Determine duration in minutes based on break type
+        if getattr(breakObject, 'break_type', None) == 'M30':
+            duration_minutes = 30
+        elif getattr(breakObject, 'break_type', None) == '15':
+            duration_minutes = 15
+
+        # Update break_end to be break_start + duration
+        breakObject.break_end = breakObject.break_start + timedelta(minutes=duration_minutes)
+
         breakObject.save()
-        
+
+
         BreakService.broadcast_break_update(breakObject)
 
+        # Remove any previously scheduled tasks for this break and schedule the warning
         Schedule.objects.filter(name__contains=f'Break #{breakObject.id}').delete()
 
+        warning_task_id = None
         if breakObject.break_end:
             reminderTime = breakObject.break_end - timedelta(minutes=minutesLeftAlert)
 
@@ -94,6 +107,7 @@ class BreakService:
                     next_run = reminderTime,
                     name=(f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}'),
                 )
+
         return warning_task_id
 
     #Deletes django_q schedule for breakObject when break ends. Output string only for testing.
