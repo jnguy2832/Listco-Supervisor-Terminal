@@ -58,8 +58,17 @@ class Shift(models.Model):
             return #no breaks for shifts less than 4 hours
 
         breaks_to_schedule = []
+
+        # Ensure that one 15 min breaks is scheduled first if applicable
+        if required_breaks['15'] > 0 and required_breaks['30'] > 0:
+            breaks_to_schedule.append(('15', break_15_minutes))
+            required_breaks['15'] -= 1
+
+        # Schedule 30-min meal break
         for _ in range(required_breaks['30']):
             breaks_to_schedule.append(('M30', meal_30_minutes))
+
+        # Schedule remaining 15-min breaks
         for _ in range(required_breaks['15']):
             breaks_to_schedule.append(('15', break_15_minutes))
 
