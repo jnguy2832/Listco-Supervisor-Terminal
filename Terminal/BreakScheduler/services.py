@@ -21,7 +21,11 @@ class BreakService:
                     'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
                     'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
                     'employee_name': f"{break_obj.shift.employee.first_name} {break_obj.shift.employee.last_name}",
-                    'break_type': break_obj.break_type
+                    'break_type': break_obj.break_type,
+                    'shift_id': break_obj.shift.id,
+                    'shift_start': break_obj.shift.start_time.isoformat() if break_obj.shift.start_time else None,
+                    'shift_end': break_obj.shift.end_time.isoformat() if break_obj.shift.end_time else None,
+                    'location': break_obj.shift.employee.location if getattr(break_obj.shift.employee, 'location', None) else None
                 }
             )
 

@@ -71,7 +71,11 @@ class BreakUpdateConsumer(AsyncWebsocketConsumer):
                         'break_type': break_obj.break_type,
                         'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
                         'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
-                        'status': break_obj.status
+                        'status': break_obj.status,
+                        'shift_id': shift.id,
+                        'shift_start': shift.start_time.isoformat() if shift.start_time else None,
+                        'shift_end': shift.end_time.isoformat() if shift.end_time else None,
+                        'location': shift.employee.location if getattr(shift.employee, 'location', None) else None
                     })
             else:
                 # No break objects were created for this shift; send a placeholder so UI can show the shift
@@ -81,7 +85,11 @@ class BreakUpdateConsumer(AsyncWebsocketConsumer):
                     'break_type': None,
                     'break_start': shift.start_time.isoformat() if shift.start_time else None,
                     'break_end': shift.end_time.isoformat() if shift.end_time else None,
-                    'status': 'No breaks scheduled'
+                    'status': 'No breaks scheduled',
+                    'shift_id': shift.id,
+                    'shift_start': shift.start_time.isoformat() if shift.start_time else None,
+                    'shift_end': shift.end_time.isoformat() if shift.end_time else None,
+                    'location': shift.employee.location if getattr(shift.employee, 'location', None) else None
                 })
 
         return breaks_data

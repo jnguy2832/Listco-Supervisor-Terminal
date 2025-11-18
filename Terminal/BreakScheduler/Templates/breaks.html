@@ -341,8 +341,10 @@
             <td>
               <div class="employee-name">${employeeName}</div>
             </td>
-            <td>${firstBreak.break_start ? formatDate(firstBreak.break_start) : ''}</td>
-            <td colspan="3"></td>
+            <td>${firstBreak.shift_start ? formatDate(firstBreak.shift_start) : (firstBreak.break_start ? formatDate(firstBreak.break_start) : '')}</td>
+            <td>${firstBreak.shift_start ? formatTime(firstBreak.shift_start) : (firstBreak.break_start ? formatTime(firstBreak.break_start) : '')}</td>
+            <td>${firstBreak.shift_end ? formatTime(firstBreak.shift_end) : (firstBreak.break_end ? formatTime(firstBreak.break_end) : '')}</td>
+            <td>${firstBreak.location || ''}</td>
             <td>`;
         if (shiftData.breaks.length > 0) {
           shiftData.breaks.forEach(b => {
@@ -365,12 +367,12 @@
       
       if (breakObj.status === 'On Break') {
         statusBadge = '<span class="badge bg-danger me-2">On Break</span>';
+      } else if (breakObj.status === '5 minutes left') {
+        statusBadge = '<span class="badge bg-warning me-2">5 minutes left</span>'
         actionButton = 
         `<button class="btn btn-sm btn-outline-success" onclick="endBreak(${breakObj.id})">
           End Break
-        </button>`;
-      } else if (breakObj.status === '5 minutes left') {
-        statusBadge = '<span class="badge bg-warning me-2">5 minutes left</span>';
+        </button>`;;
       } else if (breakObj.status === 'Assigned') {
         statusBadge = '<span class="badge bg-secondary me-2">Assigned</span>';
         actionButton = `
