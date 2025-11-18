@@ -87,9 +87,26 @@
       background-color: red;
       color: white;
     }
+
+    /* Styling for horizontal date/day/time */
+    .current-datetime {
+      display: flex;
+      flex-wrap: wrap;           /* Wraps to next line on smaller screens */
+      gap: 1.5rem;
+      font-weight: 600;
+      color: rgb(90, 66, 150);   /* matches website theme */
+      justify-content: flex-start;
+    }
+    .current-datetime div {
+      min-width: 120px;          /* ensures each block has enough space */
+      white-space: nowrap;       /* prevents breaking inside the text */
+    }
+    .current-datetime div strong {
+      color: rgb(90, 66, 150);
+    }
   </style>
 </head>
-<body onload="populateMonthDropdown()">
+<body onload="updateCurrentDateTime()">
 
   <div class="menu-header">
     <img src="/static/logo.png" alt="Listco Logo" />
@@ -102,15 +119,11 @@
 
   <div class="tracker-section">
     <div class="tracker-header w-100">
-      <div class="d-flex flex-wrap gap-3 align-items-end">
-        <div>
-          <label for="monthSelector" class="form-label">Month:</label>
-          <select id="monthSelector" class="form-select" onchange="updateWeekOptions()"></select>
-        </div>
-        <div>
-          <label for="weekSelector" class="form-label">Week:</label>
-          <select id="weekSelector" class="form-select" onchange="updateSelectedWeek()"></select>
-        </div>
+      <!-- Replaced Month/Week dropdowns with horizontal date/day/time -->
+      <div class="current-datetime">
+        <div><strong>Date:</strong> <span id="currentDate"></span></div>
+        <div><strong>Day:</strong> <span id="currentDay"></span></div>
+        <div><strong>Time:</strong> <span id="currentTime"></span></div>
       </div>
       <div class="ms-auto">
         <span id="connectionStatus" class="connection-status status-disconnected">Disconnected</span>
@@ -135,6 +148,21 @@
   </div>
 
   <script>
+    // New function to update live date/day/time in AM/PM format
+    function updateCurrentDateTime() {
+      const now = new Date();
+      const optionsDate = { month: 'short', day: 'numeric', year: 'numeric' };
+      const optionsDay = { weekday: 'long' };
+
+      document.getElementById('currentDate').textContent = now.toLocaleDateString(undefined, optionsDate);
+      document.getElementById('currentDay').textContent = now.toLocaleDateString(undefined, optionsDay);
+      document.getElementById('currentTime').textContent = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    }
+
+    setInterval(updateCurrentDateTime, 1000);
+    updateCurrentDateTime();
+
+    // Original functions and logic remain untouched
     function getWeekRange(startDate) {
       const sunday = new Date(startDate);
       const saturday = new Date(sunday);
@@ -230,11 +258,9 @@
     });
 
     function buildWsUrl(path) {
-      // Use origin (scheme + host + port) and swap http->ws
       const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
       let wsOrigin = origin.replace(/^http/, 'ws');
       let full = wsOrigin.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
-      // normalize double slashes after the scheme (keep the // after ws:)
       full = full.replace(/([^:]\/\/)\/+/g, '$1');
       return full;
     }
@@ -258,10 +284,6 @@
           const data = JSON.parse(e.data);
           console.log('Received: ', data);
 
-          // Server sends:
-          // - 'initial_data' with full breaks list when client connects
-          // - 'breaks_update' with a full list when requested
-          // - 'break_update' for a single break status change
           if (data.type === 'initial_data' || data.type === 'breaks_update') {
             renderBreaksTable(data.breaks);
           } else if (data.type === 'break_update') {
@@ -285,6 +307,7 @@
         console.error('WebSocket error: ', error);
       };
     }
+
     function updateConnectionStatus(connected) {
       const statusEl = document.getElementById('connectionStatus');
       if (connected) {
@@ -295,19 +318,23 @@
         statusEl.className = 'connection-status status-disconnected';
       }
     }
+
     function formatTime(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
       return date.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
     }
+
     function formatDate(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
     }
+
     function getBreakTypeDisplay(breakType) {
       return breakType === 'M30' ? '30 minute meal' : '15 minute break';
     }
+
     function renderBreaksTable(breaks) {
       const tbody = document.getElementById('trackerBody');
 
@@ -396,6 +423,7 @@
           </div>
         </div>`;
     }
+
     function updateSingleBreak(data) {
       const breakEl = document.querySelector(`[data-break-id="${data.break_id}"]`);
       if (breakEl) {
@@ -411,6 +439,7 @@
         requestUpdate();
       }
     }
+
     function requestUpdate() {
       if (breakSocket && breakSocket.readyState === WebSocket.OPEN) {
         breakSocket.send(JSON.stringify({type: 'update'}));
@@ -457,8 +486,8 @@
       }
       return cookieValue;
     }
-    connectWebSocket();
 
+    connectWebSocket();
     setInterval(requestUpdate, 30000);
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
