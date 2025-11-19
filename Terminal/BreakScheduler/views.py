@@ -1,16 +1,60 @@
 import json, time, queue
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.contrib import messages
 from .models import *
 from .services import BreakService
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+import datetime
 
 def index(request):
     return render(request, 'dashboard.html')
 
 def weeklyPortal(request):
-    return render(request, 'schedule.html')
+    # Form data for button
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee')
+        shift_date_str = request.POST.get('shift_date')
+        start_time_str = request.POST.get('start_time')
+        end_time_str = request.POST.get('end_time')
+
+        try:
+            employee = Employee.objects.get(id=employee_id)
+            # Parse strings into python objects
+            shift_date = datetime.datetime.strptime(shift_date_str, "%Y-%m-%d").date()
+            start_time_obj = datetime.datetime.strptime(start_time_str, "%H:%M").time()
+            end_time_obj = datetime.datetime.strptime(end_time_str, "%H:%M").time()
+
+            # combine into timezone aware datetimes
+            start_dt_naive = datetime.datetime.combine(shift_date, start_time_obj)
+            if end_time_obj < start_time_obj:
+                end_dt_naive = datetime.datetime.combine(shift_date + datetime.timeedelta(days=1), end_time_obj)
+            else:
+                end_dt_naive = datetime.datetime.combine(shift_date, end_time_obj)
+
+            start_dt = timezone.make_aware(start_dt_naive)
+            end_dt = timezone.make_aware(end_dt_naive)
+
+            # Create Shift and Generate Breaks
+            new_shift = Shift(
+                employee=employee,
+                start_time=start_dt,
+                end_time=end_dt,
+                is_scheduled=True
+            )
+            new_shift.save()
+
+            # calls model method to create the break objects
+            new_shift.generate_breaks()
+            messages.success(request, f"Shift assigned to {employee.first_name} {employee.last_name}.")
+        except Exception as e:
+            messages.error(request, f"Error assigning shift: {e}")
+        return redirect('Schedule')
+    
+    # Gets employees for the dropdown list
+    employees = Employee.objects.all().order_by('last_name')
+    return render(request, 'schedule.html', {'employees': employees})
 
 def breaks(request):
     #Displays all shifts and their generated breaks

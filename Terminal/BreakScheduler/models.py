@@ -38,6 +38,7 @@ class Shift(models.Model):
         duration = self.end_time - self.start_time
         #convert total duration to hours
         total_hours = duration.total_seconds() / 3600
+        total_hours = round(total_hours, 2)
 
         required_breaks = {'15': 0, '30' : 0}
 
