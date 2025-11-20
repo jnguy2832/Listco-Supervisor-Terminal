@@ -45,6 +45,8 @@ def weeklyPortal(request):
             )
             new_shift.save()
 
+            new_shift.refresh_from_db()
+
             # calls model method to create the break objects
             new_shift.generate_breaks()
             messages.success(request, f"Shift assigned to {employee.first_name} {employee.last_name}.")
