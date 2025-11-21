@@ -92,6 +92,9 @@
           <select id="weekSelector" class="form-select" onchange="updateSelectedWeek()"></select>
         </div>
       </div>
+      <div class="ms-auto">
+        <span id="connectionStatus" class="connection-status status-disconnected">Disconnected</span>
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -112,6 +115,7 @@
   </div>
 
   <script>
+    // Week/month helpers
     function getWeekRange(startDate) {
       const sunday = new Date(startDate);
       const saturday = new Date(sunday);
@@ -164,36 +168,155 @@
       updateSelectedWeek();
     }
 
+    // Formatting helpers
+    function formatTime(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+    }
+
+    // WebSocket and rendering: filter and show only employees with job_title === 'walk'
+    function buildWsUrl(path) {
+      const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+      let wsOrigin = origin.replace(/^http/, 'ws');
+      let full = wsOrigin.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
+      full = full.replace(/([^:]\/\/)\/+/, '$1');
+      return full;
+    }
+
+    const wsUrl = buildWsUrl('/ws/breaks/');
+    let breakSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    function connectWebSocket(){
+      breakSocket = new WebSocket(wsUrl);
+
+      breakSocket.onopen = function() {
+        reconnectAttempts = 0;
+        updateConnectionStatus(true);
+      };
+
+      breakSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.type === 'initial_data' || data.type === 'breaks_update') {
+          renderEmployees(data.breaks);
+        }
+      };
+
+      breakSocket.onclose = function() {
+        updateConnectionStatus(false);
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(connectWebSocket, 3000);
+        }
+      };
+      breakSocket.onerror = function(error) {
+        console.error('WebSocket error: ', error);
+      };
+    }
+
+    function requestUpdate() {
+      if (breakSocket && breakSocket.readyState === WebSocket.OPEN) {
+        breakSocket.send(JSON.stringify({type: 'update'}));
+      }
+    }
+
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connectionStatus');
+      if (!statusEl) return;
+      if (connected) {
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'connection-status status-connected';
+      } else {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'connection-status status-disconnected';
+      }
+    }
+
     function updateSelectedWeek() {
+      // If WebSocket data is present, it will call renderEmployees directly.
+      // Keep this function to preserve existing UI behavior for manual entries.
       const selectedMonth = parseInt(document.getElementById("monthSelector").value);
       const trackerBody = document.getElementById("trackerBody");
-      trackerBody.innerHTML = "";
+      trackerBody.innerHTML = '';
+      // No-op for manual entries; live data handled by renderEmployees
+    }
 
-      const entries = []; // Supervisor will populate this manually or via backend
+    // Render function groups shifts by employee and filters to job_title === 'walk'
+    function renderEmployees(breaks) {
+      const tbody = document.getElementById('trackerBody');
+      tbody.innerHTML = "";
 
-      entries.forEach(entry => {
-        const entryDate = new Date(entry.date);
-        if (entryDate.getMonth() === selectedMonth) {
-          const breakDetails = entry.breaks.map(b => `• ${b.inTime} – ${b.outTime}`).join("<br>");
+      if (!breaks || breaks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Shifts Scheduled Today</td></tr>';
+        return;
+      }
 
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td><div class="employee-name">${entry.name}</div></td>
-            <td>${entry.date}</td>
-            <td>${entry.start}</td>
-            <td>${entry.end}</td>
-            <td>${entry.location}</td>
-            <td>
-              <details>
-                <summary>View Breaks Taken</summary>
-                <div class="text-start mt-1">${breakDetails}</div>
-              </details>
-            </td>
-          `;
-          trackerBody.appendChild(row);
+      const shiftsMap = new Map();
+      breaks.forEach(b => {
+        const key = b.employee_name || b.name || '';
+        if (!shiftsMap.has(key)) {
+          shiftsMap.set(key, {
+            employee_name: key,
+            job_title: (b.job_title || '').toString(),
+            shift_start: b.shift_start || b.start || null,
+            shift_end: b.shift_end || b.end || null,
+            location: b.location || '',
+            break_times: []
+          });
+        }
+
+        const emp = shiftsMap.get(key);
+        if (Array.isArray(b.breaks) && b.breaks.length) {
+          b.breaks.forEach(br => {
+            if (br.inTime && br.outTime) emp.break_times.push(`${formatTime(br.inTime)} – ${formatTime(br.outTime)}`);
+            else if (br.start && br.end) emp.break_times.push(`${formatTime(br.start)} – ${formatTime(br.end)}`);
+          });
+        } else if (b.break_start && b.break_end) {
+          emp.break_times.push(`${formatTime(b.break_start)} – ${formatTime(b.break_end)}`);
+        } else if (b.inTime && b.outTime) {
+          emp.break_times.push(`${formatTime(b.inTime)} – ${formatTime(b.outTime)}`);
         }
       });
+
+      let html = '';
+      shiftsMap.forEach(emp => {
+        if (emp.job_title && emp.job_title.toLowerCase() === 'walk') {
+          const breakDetails = emp.break_times.length ? emp.break_times.map(t => `• ${t}`).join('<br>') : 'No Breaks Recorded';
+          html += `
+            <tr>
+              <td><div class="employee-name">${emp.employee_name}</div></td>
+              <td>${emp.shift_start ? formatDate(emp.shift_start) : ''}</td>
+              <td>${emp.shift_start ? formatTime(emp.shift_start) : ''}</td>
+              <td>${emp.shift_end ? formatTime(emp.shift_end) : ''}</td>
+              <td>${emp.location || ''}</td>
+              <td>
+                <details>
+                  <summary>View Breaks Taken</summary>
+                  <div class="text-start mt-1">${breakDetails}</div>
+                </details>
+              </td>
+            </tr>`;
+        }
+      });
+
+      if (!html) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Walk Employees Found</td></tr>';
+      } else {
+        tbody.innerHTML = html;
+      }
     }
+
+    // Initialize WS connection and polling
+    connectWebSocket();
+    setInterval(requestUpdate, 3000);
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
