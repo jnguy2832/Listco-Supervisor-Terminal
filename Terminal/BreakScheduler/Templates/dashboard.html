@@ -103,11 +103,12 @@
       background-color: rgb(255, 243, 200);
     }
 
+    /* UPDATED: Now a flexbox layout that can wrap */
     .menu-buttons {
       margin-top: 2rem;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 1rem;
     }
 
@@ -140,7 +141,6 @@
         ⚙️ <span>Menu</span>
       </button>
       <ul class="dropdown-menu">
-        <li><a class="dropdown-item" href="login.html">🔓 Sign Out</a></li>
         <li><a class="dropdown-item" href="/admin/">👤 Employee Database</a></li>
       </ul>
     </div>
