@@ -125,17 +125,17 @@ def broadcast_break_update(break_obj):
             'type': break_obj.break_type
         }
     )
-def candy(request):
+def supervisor(request):
     return render(request, 'candy.html')
 
 def carts(request):
     return render(request, 'carts.html')
 
-def haba(request):
-    return render(request, 'haba.html')
+def cashier(request):
+    return render(request, 'cashiers.html')
 
 def gasStation(request):
     return render(request, 'gas_station.html')
 
-def walk(request):
-    return render(request, 'walk.html')
+def food_court(request):
+    return render(request, 'food_court.html')

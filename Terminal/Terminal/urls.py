@@ -23,9 +23,9 @@ urlpatterns = [
     path('', views.index, name='Dashboard'),
     path('weeklySchedule/', views.weeklyPortal, name='Schedule'),
     path('break/', views.breaks, name='break'),
-    path('candy/', views.candy, name='candy'),
+    path('supervisor/', views.supervisor, name='supervisor'),
     path('carts/', views.carts, name='carts'),
     path('gas_station/', views.gasStation, name='gas station'),
-    path('haba/', views.haba, name='haba'),
-    path('walk/', views.walk, name='walk')
+    path('cashier/', views.cashier, name='cashier'),
+    path('food_court/', views.food_court, name='food_court')
 ]
