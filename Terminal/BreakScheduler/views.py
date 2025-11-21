@@ -74,8 +74,6 @@ def breaks(request):
             break_obj = Break.objects.get(pk=break_id)
             if action =='start_break':
                 BreakService.startBreak(break_obj)
-                # Broadcast the update via WebSocket
-                broadcast_break_update(break_obj)
             elif action == 'end_break':
                 BreakService.endBreak(break_obj)
             #(INSERT SUCCESS MESSAGE HERE)
@@ -111,20 +109,6 @@ def breaks(request):
     }
     return render(request, 'breaks.html', context)
 
-def broadcast_break_update(break_obj):
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-    'breaks_updates',
-        {
-            'type': 'break_status_update',
-            'break_id': break_obj.id,
-            'status': break_obj.status,
-            'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
-            'break_end': break_obj.break_end.isoformat() if break_obj.break_end else None,
-            'employee_name': f"{break_obj.shift.employee.first_name} {break_obj.shift.employee.last_name}",
-            'type': break_obj.break_type
-        }
-    )
 def candy(request):
     return render(request, 'candy.html')
 

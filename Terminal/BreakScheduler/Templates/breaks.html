@@ -104,6 +104,38 @@
     .current-datetime div strong {
       color: rgb(90, 66, 150);
     }
+
+  .status-class {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+    margin-right: .5rem;
+  }
+  .status-class.on-break      { background: green; } 
+  .status-class.ending-soon   { background: orange; } 
+  .status-class.over          { background: orangered; } 
+  .status-class.missed        { background: red; } 
+  .status-class.assigned      { background: lightskyblue; } 
+
+  .row-on-break {
+    background-color: #b7f6c1 !important;
+  }
+  .row-ending-soon {
+    background-color: #fdbc99 !important;
+  }
+  .row-over {
+    background-color: #f59393 !important;
+  }
+  .row-missed {
+    background-color: #f85252 !important;
+  }
+  .row-assigned {
+    background-color: white !important;
+  }
   </style>
 </head>
 <body onload="updateCurrentDateTime()">
@@ -356,8 +388,18 @@
 
       let html = '';
       shiftsMap.forEach((shiftData, employee_name) => {
-        const hasActiveBreak = shiftData.breaks.some(b => b.status === 'On Break');
-        const rowClass = hasActiveBreak ? 'table-warning' : '';
+      const hasOnBreak = shiftData.breaks.some(b => b.status === 'On Break');
+      const hasFiveLeft = shiftData.breaks.some(b => b.status === '5 minutes left');
+      const hasOver = shiftData.breaks.some(b => b.status === 'Over break time');
+      const hasMissed = shiftData.breaks.some(b => b.status === 'Missed break return');
+      const hasAssignedOnly = !hasOnBreak && !hasFiveLeft && !hasMissed && !hasOver && shiftData.breaks.some(b => b.status === 'Assigned');
+
+      let rowClass = '';
+      if (hasOnBreak) rowClass = 'row-on-break';
+      else if (hasFiveLeft) rowClass = 'row-ending-soon';
+      else if (hasOver) rowClass = 'row-over';
+      else if (hasMissed) rowClass = 'row-missed';
+      else if (hasAssignedOnly) rowClass = 'row-assigned';
 
         const firstBreak = shiftData.breaks[0] || {};
         const employeeName = shiftData.employee_name || employee_name;
@@ -392,21 +434,35 @@
       let actionButton = '';
       
       if (breakObj.status === 'On Break') {
-        statusBadge = '<span class="badge bg-danger me-2">On Break</span>';
+        statusBadge = '<span class="status-class on-break">On Break</span>';
       } else if (breakObj.status === '5 minutes left') {
-        statusBadge = '<span class="badge bg-warning me-2">5 minutes left</span>'
+        statusBadge = '<span class="status-class ending-soon">5 minutes left</span>';
         actionButton = 
         `<button class="btn btn-sm btn-outline-success" onclick="endBreak(${breakObj.id})">
           End Break
-        </button>`;;
+        </button>`;
+      } else if (breakObj.status === 'Over break time') {
+        statusBadge = '<span class="status-class over">Late to return</span>';
+        actionButton = 
+        `<button class="btn btn-sm btn-outline-success" onclick="endBreak(${breakObj.id})">
+          End Break
+        </button>`;
+      } else if (breakObj.status === 'Missed break return') {
+        statusBadge = '<span class="status-class missed">Did not return from break</span>';
+        actionButton = 
+        `<button class="btn btn-sm btn-outline-success" onclick="endBreak(${breakObj.id})">
+          End Break
+        </button>`;
       } else if (breakObj.status === 'Assigned') {
-        statusBadge = '<span class="badge bg-secondary me-2">Assigned</span>';
-        actionButton = `
-          <button class="btn btn-sm btn-primary" onclick="startBreak(${breakObj.id})">
-            Start Break
-          </button>`;
-          } else {
-        statusBadge = `<span class="badge bg-success">${breakObj.status}</span>`;
+        statusBadge = '<span class="status-class assigned">Assigned</span>';
+        actionButton = 
+        `<button class="btn btn-sm btn-primary" onclick="startBreak(${breakObj.id})">
+          Start Break
+        </button>`;
+      } else if (breakObj.status === 'Over') {
+        statusBadge = '<span class="badge bg-success">Complete</span>';
+      } else {
+        statusBadge = `<span class="badge bg-secondary">${breakObj.status}</span>`;
       }
 
       return `
@@ -428,15 +484,62 @@
       if (breakEl) {
         const breakObj = {
           id: data.break_id,
-          break_type: data.break_type || breakEl.querySelector('strong').textContent,
+          break_type: data.break_type || breakEl.getAttribute('data-break-type') || 'R15',
           break_start: data.break_start,
           break_end: data.break_end,
           status: data.status
         };
         breakEl.outerHTML = renderBreakItem(breakObj);
+        
+        updateRowBackground(data.employee_name || breakEl.closest('tr').querySelector('.employee-name').textContent);
       } else {
         requestUpdate();
       }
+    }
+    function updateRowBackground(employeeName) {
+        const allRows = document.querySelectorAll('tr');
+        let targetRow = null;
+        
+        for (const row of allRows) {
+          const nameEl = row.querySelector('.employee-name');
+          if (nameEl && nameEl.textContent === employeeName) {
+            targetRow = row;
+            break;
+          }
+        }
+        
+        if (!targetRow) return;
+        
+        // Find all breaks in this specific row
+        const allBreaks = Array.from(targetRow.querySelectorAll('[data-break-id]'))
+          .map(el => {
+            const statusEl = el.querySelector('.status-class');
+            return statusEl ? statusEl.textContent : '';
+          });
+
+        // Determine row class based on break statuses
+        const allBadges = Array.from(targetRow.querySelectorAll('.status-class'));
+
+        const hasOnBreak = allBadges.some(el => el.classList.contains('on-break'));
+        const hasFiveLeft = allBadges.some(el => el.classList.contains('ending-soon'));
+        const hasOver = allBadges.some(el => el.classList.contains('over'));
+        const hasMissed = allBadges.some(el => el.classList.contains('missed'));
+        const hasAssigned = allBadges.some(el => el.classList.contains('assigned'));
+
+        let rowClass = '';
+        if (hasOnBreak) rowClass = 'row-on-break';
+        else if (hasFiveLeft) rowClass = 'row-ending-soon';
+        else if (hasOver) rowClass = 'row-over';
+        else if (hasMissed) rowClass = 'row-missed';
+        else if (hasAssigned && !hasOnBreak && !hasFiveLeft && !hasOver && !hasMissed) rowClass = 'row-assigned';
+
+        // 1. Remove all existing row classes
+        targetRow.classList.remove('row-on-break', 'row-ending-soon', 'row-over', 'row-missed', 'row-assigned');
+
+        // 2. Apply the new class
+        if (rowClass) {
+            targetRow.classList.add(rowClass);
+        }
     }
 
     function requestUpdate() {

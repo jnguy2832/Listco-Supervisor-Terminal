@@ -42,7 +42,8 @@ class BreakUpdateConsumer(AsyncWebsocketConsumer):
             'status': event['status'],
             'break_start': event.get('break_start'),
             'break_end': event.get('break_end'),
-            'employee_name': event.get('employee_name')
+            'employee_name': event.get('employee_name'),
+            'break_type': event.get('break_type')
         }))
 
     @database_sync_to_async
