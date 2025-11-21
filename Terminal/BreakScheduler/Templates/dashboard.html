@@ -103,9 +103,10 @@
       background-color: rgb(255, 243, 200);
     }
 
-    /* UPDATED: Now a flexbox layout that can wrap */
+    /* UPDATED: flex layout with a max of 2 buttons per row */
     .menu-buttons {
-      margin-top: 2rem;
+      margin: 2rem auto;
+      max-width: 900px;
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
@@ -113,7 +114,7 @@
     }
 
     .menu-buttons a {
-      width: 80%;
+      flex: 1 1 calc(50% - 1rem);
       max-width: 400px;
       font-size: 1.5rem;
       font-weight: 700;
@@ -141,6 +142,7 @@
         ⚙️ <span>Menu</span>
       </button>
       <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="login.html">🔓 Sign Out</a></li>
         <li><a class="dropdown-item" href="/admin/">👤 Employee Database</a></li>
       </ul>
     </div>
