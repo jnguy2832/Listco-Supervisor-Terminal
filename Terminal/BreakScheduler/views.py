@@ -73,7 +73,7 @@ def weeklyPortal(request):
 
     #Weekly Schedule datastructure
     #Fetches all employees so that even those with 0 hours appears on the schedule
-    employees = Employee.objects.all().order_by('last_name')
+    employees = Employee.objects.all().order_by('job_title')
 
     #dictionary for quick lookup
     schedule_map = {}
@@ -129,6 +129,9 @@ def weeklyPortal(request):
     for item in schedule_map.values():
         item['total_hours'] = round(item['total_hours'], 2)
     schedule_data = list(schedule_map.values())
+
+    #Total Department Hours
+    Total_Department_hours = sum(item['total_hours'] for item in schedule_data)
     
     # Gets employees for the dropdown list
     employees = Employee.objects.all().order_by('last_name')
@@ -138,6 +141,7 @@ def weeklyPortal(request):
         'schedule_data': schedule_data,
         'week_start': start_of_week,
         'week_end': end_of_week,
+        'total_department_hours': Total_Department_hours,
     }
 
     return render(request, 'schedule.html', context)

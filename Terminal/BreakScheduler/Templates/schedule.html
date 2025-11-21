@@ -105,6 +105,7 @@
 
   <div class="schedule-section">
     <div class="schedule-header w-100">
+      <!--
       <div class="d-flex flex-wrap gap-3 align-items-end">
         <div>
           <label for="monthSelector" class="form-label">Month:</label>
@@ -115,6 +116,10 @@
           <select id="weekSelector" class="form-select" onchange="updateSelectedWeek()"></select>
         </div>
       </div>
+      -->
+      <th colspan="9">
+        Total Department Hours: {{ total_department_hours }}
+      </th>
       <button class="assign-button" data-bs-toggle="modal" data-bs-target="#assignShiftModal">
         + Assign New Shift
       </button>
@@ -144,7 +149,7 @@
           {% for employee_schedule in schedule_data %}
           <tr>
               <td class="text-start fw-bold">
-                  {{ employee_schedule.employee.first_name }} {{ employee_schedule.employee.last_name }}
+                  {{ employee_schedule.employee.first_name }} {{ employee_schedule.employee.last_name }}, {{ employee_schedule.employee.job_title }}
               </td>
               <td class="fw-bold">
                   {{ employee_schedule.total_hours }}
