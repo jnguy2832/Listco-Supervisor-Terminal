@@ -226,7 +226,7 @@
 
       let html = '';
       shiftsMap.forEach(emp => {
-        if (emp.job_title && emp.job_title.toLowerCase() === "candy") {
+        if (emp.job_title && emp.job_title.toLowerCase() === "Supervisor") {
           html += `
             <tr>
               <td><div class="employee-name">${emp.employee_name}</div></td>
@@ -239,7 +239,7 @@
       });
 
       if (!html) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Candy Employees Found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Supervisor Employees Found</td></tr>';
       } else {
         tbody.innerHTML = html;
       }

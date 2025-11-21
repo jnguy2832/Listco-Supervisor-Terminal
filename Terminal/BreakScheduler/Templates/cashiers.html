@@ -288,7 +288,7 @@
 
       let html = '';
       shiftsMap.forEach(emp => {
-        if (emp.job_title && emp.job_title.toLowerCase() === 'haba') {
+        if (emp.job_title && emp.job_title.toLowerCase() === 'Cashier') {
           const breakDetails = emp.break_times.length ? emp.break_times.map(t => `• ${t}`).join('<br>') : 'No Breaks Recorded';
           html += `
             <tr>
@@ -308,7 +308,7 @@
       });
 
       if (!html) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No HABA Employees Found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No Cashier Employees Found</td></tr>';
       } else {
         tbody.innerHTML = html;
       }
