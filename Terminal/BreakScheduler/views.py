@@ -110,7 +110,7 @@ def breaks(request):
     return render(request, 'breaks.html', context)
 
 def supervisor(request):
-    return render(request, 'candy.html')
+    return render(request, 'supervisors.html')
 
 def carts(request):
     return render(request, 'carts.html')
