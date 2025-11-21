@@ -1,3 +1,4 @@
+from arrow import now
 from django.utils import timezone
 from datetime import timedelta
 from django_q.tasks import schedule
@@ -15,7 +16,7 @@ class BreakService:
             async_to_sync(channel_layer.group_send)(
                 'breaks_updates',
                 {
-                    'type': 'break_status_update',
+                    'type': 'break.status.update',
                     'break_id': break_obj.id,
                     'status': break_obj.status,
                     'break_start': break_obj.break_start.isoformat() if break_obj.break_start else None,
@@ -41,19 +42,8 @@ class BreakService:
             breakObject.status = '5 minutes left'
             breakObject.save()
 
-            
             #Websocket broadcast for breakEnding
             BreakService.broadcast_break_update(breakObject)
-
-            #Schedules task end after warning, logic goes breakStart > breakEnding > breakEnded
-            ended_task_id = schedule(
-                'BreakScheduler.services.BreakService.breakEnded',
-                breakObject.id,
-                schedule_type = Schedule.ONCE,
-                next_run = breakObject.break_end,
-                name = (f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}')
-            )
-
 
             return "Break notification test"
         except Break.DoesNotExist:
@@ -66,62 +56,110 @@ class BreakService:
             breakObject = Break.objects.get(id=break_id)
             employeeBreak = breakObject.shift.employee
 
-            BreakService.broadcast_break_update(breakObject)
-
-            breakObject.status = 'Over'
+            breakObject.status = 'Over break time'
             breakObject.save()
 
-            return "Break ending now"
+            BreakService.broadcast_break_update(breakObject)
+
+            return "Break over scheduled time"
         except Break.DoesNotExist:
             print("Break not found")
             return -1
+        
+    '''@staticmethod
+    def breakOverTime(break_id):
+        try:
+            breakObject = Break.objects.get(id=break_id)
+            employeeBreak = breakObject.shift.employee
 
+            breakObject.status = 'Missed break return'
+            breakObject.save()
+            BreakService.broadcast_break_update(breakObject)
+            
+            # Clean up the schedule after it runs
+            Schedule.objects.filter(
+                func='BreakScheduler.services.BreakService.breakOverTime',
+                name__contains=f'Break #{breakObject.id}'
+            ).delete()
+
+            return "Did not return from break on time"
+        except Break.DoesNotExist:
+            print("Break not found")
+            return -1'''
+        
     #Starts break of breakObject and determines when breakEnding function should run with minutesLeftAlert
     @staticmethod
-    def startBreak(breakObject, minutesLeftAlert=5):
+    def startBreak(breakObject, minutesLeftAlert=5, grace_minutes=5):
         breakObject.break_start = timezone.now()
         breakObject.status = 'On Break'
 
-        # Determine duration in minutes based on break type
         if getattr(breakObject, 'break_type', None) == 'M30':
             duration_minutes = 30
-        elif getattr(breakObject, 'break_type', None) == '15':
+        else:
             duration_minutes = 15
-
-        # Update break_end to be break_start + duration
         breakObject.break_end = breakObject.break_start + timedelta(minutes=duration_minutes)
-
         breakObject.save()
 
-
+        # Broadcast current state on starting break
         BreakService.broadcast_break_update(breakObject)
 
-        # Remove any previously scheduled tasks for this break and schedule the warning
         Schedule.objects.filter(name__contains=f'Break #{breakObject.id}').delete()
 
-        warning_task_id = None
-        if breakObject.break_end:
-            reminderTime = breakObject.break_end - timedelta(minutes=minutesLeftAlert)
+        now = timezone.now()
 
-            if reminderTime > timezone.now():
-                warning_task_id = schedule(
-                    'BreakScheduler.services.BreakService.breakEnding',
-                    breakObject.id,
-                    schedule_type = Schedule.ONCE,
-                    next_run = reminderTime,
-                    name=(f'Break #{breakObject.id} : {breakObject.shift.employee.last_name}'),
-                )
+        reminder_time = breakObject.break_end - timedelta(minutes=minutesLeftAlert)
+        if reminder_time > now:
+            schedule(
+                'BreakScheduler.services.BreakService.breakEnding',
+                breakObject.id,
+                schedule_type=Schedule.ONCE,
+                next_run=reminder_time,
+                name=f'Break #{breakObject.id} : {breakObject.shift.employee.last_name} Ending'
+            )
 
-        return warning_task_id
+        if breakObject.break_end > now:
+            schedule(
+                'BreakScheduler.services.BreakService.breakEnded',
+                breakObject.id,
+                schedule_type=Schedule.ONCE,
+                next_run=breakObject.break_end,
+                name=f'Break #{breakObject.id} : {breakObject.shift.employee.last_name} Ended'
+            )
+
+        '''miss_time = breakObject.break_end + timedelta(minutes=5)
+        if miss_time > now:
+            schedule(
+                'BreakScheduler.services.BreakService.breakOverTime',
+                breakObject.id,
+                schedule_type=Schedule.ONCE,
+                next_run=miss_time,
+                name=f'Break #{breakObject.id} : {breakObject.shift.employee.last_name} Over Time'
+            )'''
+
+        return 'Breaks started'
 
     #Deletes django_q schedule for breakObject when break ends. Output string only for testing.
     @staticmethod
     def endBreak(breakObject):
+        now = timezone.now()
+        
+        #Deletes schedules based on current time and break end time
+        if now < breakObject.break_end:
+            Schedule.objects.filter(
+                func='BreakScheduler.services.BreakService.breakEnding',
+                name__contains=f'Break #{breakObject.id}'
+            ).delete()
+        
         Schedule.objects.filter(
-            func__in=['BreakScheduler.services.BreakService.breakEnding',
-                      'BreakScheduler.services.BreakService.breakEnded'],
+            func='BreakScheduler.services.BreakService.breakEnded',
             name__contains=f'Break #{breakObject.id}'
         ).delete()
+
+        if now <= breakObject.break_end + timedelta(minutes=5):
+            Schedule.objects.filter(
+                func='BreakScheduler.services.BreakService.breakOverTime',
+                name__contains=f'Break #{breakObject.id}'
+            ).delete()
 
         breakObject.status = 'Over'
         breakObject.save()
