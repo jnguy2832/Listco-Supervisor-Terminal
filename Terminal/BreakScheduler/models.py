@@ -45,7 +45,7 @@ class Shift(models.Model):
         #iterate through the rules to find the highest duration met
         for min_hours, counts in sorted(break_rules.items()):
             if total_hours >= min_hours:
-                required_breaks = counts
+                required_breaks = counts.copy()
 
         return required_breaks, total_hours
 
