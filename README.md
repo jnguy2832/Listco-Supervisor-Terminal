@@ -25,5 +25,26 @@ Listco is a Break Management web application designed to simplify managing break
 - **HomePage**: Has a central homepage to easily access different functions within the application
 
 
+### How to run
+- **download and unzip the .zip file in a directory of your choice**
+- **Open the application folder**
+- **Right click, and open a Terminal/CMD window in the application directory**
+- **Run the following command prompts:**
+- python -m venv my_venv
+- .\my_venv\Scripts\activate <---For Windows Users
+- source my_venv/bin/activate <---for macOS/Unix Users
 
+- **Once the virtual environment is running, pip install the following plugins:**
+- pip install django==5.2.7
+- pip install django_q
+- pip install django_q2
+- pip install channels
+- pip install channels_redis
+- pip install daphne
+
+- **Navigate the terminal to the /Terminal folder**
+- cd Terminal
+
+- **Run the following command: **
+- python manage.py runserver
 
